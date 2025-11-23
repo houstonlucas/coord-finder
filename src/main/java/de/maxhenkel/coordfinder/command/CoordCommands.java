@@ -8,6 +8,7 @@ import de.maxhenkel.admiral.annotations.RequiresPermission;
 import de.maxhenkel.coordfinder.CoordFinder;
 import de.maxhenkel.coordfinder.Location;
 import de.maxhenkel.coordfinder.config.PlaceConfig;
+import de.maxhenkel.coordfinder.target.PlayerTargetManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
@@ -103,6 +104,34 @@ public class CoordCommands {
         }
     }
 
+    @RequiresPermission("coordfinder.target")
+    @Command("target")
+    public void target(CommandContext<CommandSourceStack> context, @Name("name") String placeName) throws CommandSyntaxException {
+        if (!PlaceConfig.isValidPlaceName(placeName)) {
+            sendInvalidPlaceNameMessage(context.getSource());
+            return;
+        }
+
+        Location place = CoordFinder.PLACE_CONFIG.getPlace(placeName);
+        if (place == null) {
+            context.getSource().sendSuccess(() -> Component.literal("Place with name ")
+                            .append(Component.literal(placeName).withStyle(ChatFormatting.GREEN))
+                            .append(" not found.")
+                    , false);
+            return;
+        }
+
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        PlayerTargetManager.setTarget(player, placeName);
+
+        context.getSource().sendSuccess(() -> Component.literal("Set your navigation target to ")
+                        .append(Component.literal(placeName).withStyle(ChatFormatting.GREEN))
+                        .append(" at ")
+                        .append(fromLocation(place))
+                        .append(".")
+                , false);
+    }
+
     @RequiresPermission("coordfinder.hide")
     @Command("hide")
     public void hide(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -117,6 +146,50 @@ public class CoordCommands {
         ServerPlayer player = context.getSource().getPlayerOrException();
         CoordFinder.HIDDEN_PLAYERS.remove(player.getUUID());
         context.getSource().sendSuccess(() -> Component.literal("Coordinates successfully unhidden."), false);
+    }
+
+    @RequiresPermission("coordfinder.cleartarget")
+    @Command("cleartarget")
+    public void clearTarget(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        String targetName = PlayerTargetManager.getTarget(player);
+        if (targetName == null) {
+            context.getSource().sendSuccess(() -> Component.literal("You do not have a navigation target set."), false);
+            return;
+        }
+
+        PlayerTargetManager.clearTarget(player);
+        context.getSource().sendSuccess(() -> Component.literal("Cleared navigation target ")
+                        .append(Component.literal(targetName).withStyle(ChatFormatting.GREEN))
+                        .append(".")
+                , false);
+    }
+
+    @RequiresPermission("coordfinder.listtarget")
+    @Command("listtarget")
+    public void listTarget(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        String targetName = PlayerTargetManager.getTarget(player);
+        if (targetName == null) {
+            context.getSource().sendSuccess(() -> Component.literal("You do not have a navigation target set."), false);
+            return;
+        }
+
+        Location location = CoordFinder.PLACE_CONFIG.getPlace(targetName);
+        if (location == null) {
+            context.getSource().sendSuccess(() -> Component.literal("Your navigation target ")
+                            .append(Component.literal(targetName).withStyle(ChatFormatting.GREEN))
+                            .append(" no longer exists. Set a new target to update the locator bar.")
+                    , false);
+            return;
+        }
+
+        context.getSource().sendSuccess(() -> Component.literal("Your navigation target is ")
+                        .append(Component.literal(targetName).withStyle(ChatFormatting.GREEN))
+                        .append(" at ")
+                        .append(fromLocation(location))
+                        .append(".")
+                , false);
     }
 
     public static Component fromLocation(Location location) {
@@ -136,17 +209,7 @@ public class CoordCommands {
 
     private static void setPlace(CommandContext<CommandSourceStack> context, String placeName, ServerLevel dimension, Vec3 location) {
         if (!PlaceConfig.isValidPlaceName(placeName)) {
-            context.getSource().sendSuccess(() ->
-                            Component.literal("Invalid place name. Valid characters are ")
-                                    .append(Component.literal("A-Z").withStyle(ChatFormatting.GREEN))
-                                    .append(", ")
-                                    .append(Component.literal("a-z").withStyle(ChatFormatting.GREEN))
-                                    .append(", ")
-                                    .append(Component.literal("-").withStyle(ChatFormatting.GREEN))
-                                    .append(" and ")
-                                    .append(Component.literal("_").withStyle(ChatFormatting.GREEN))
-                                    .append(".")
-                    , false);
+            sendInvalidPlaceNameMessage(context.getSource());
             return;
         }
         Location loc = new Location(dimension.dimension().location(), new BlockPos((int) location.x, (int) location.y, (int) location.z));
@@ -157,6 +220,20 @@ public class CoordCommands {
                                 .append(Component.literal(placeName).withStyle(ChatFormatting.GREEN))
                                 .append(" to ")
                                 .append(fromLocation(loc))
+                                .append(".")
+                , false);
+    }
+
+    private static void sendInvalidPlaceNameMessage(CommandSourceStack source) {
+        source.sendSuccess(() ->
+                        Component.literal("Invalid place name. Valid characters are ")
+                                .append(Component.literal("A-Z").withStyle(ChatFormatting.GREEN))
+                                .append(", ")
+                                .append(Component.literal("a-z").withStyle(ChatFormatting.GREEN))
+                                .append(", ")
+                                .append(Component.literal("-").withStyle(ChatFormatting.GREEN))
+                                .append(" and ")
+                                .append(Component.literal("_").withStyle(ChatFormatting.GREEN))
                                 .append(".")
                 , false);
     }

@@ -15,16 +15,22 @@ public class CoordFinderPermissionManager implements PermissionManager<CommandSo
 
     public static final CoordFinderPermissionManager INSTANCE = new CoordFinderPermissionManager();
 
-    private static final Permission PLAYER_LOCATION = new Permission("coordfinder.playerlocation", PermissionType.EVERYONE);
-    private static final Permission MODIFY_PLACES = new Permission("coordfinder.modifyplaces", PermissionType.EVERYONE);
-    private static final Permission GET_PLACES = new Permission("coordfinder.getplaces", PermissionType.EVERYONE);
-    private static final Permission HIDE = new Permission("coordfinder.hide", PermissionType.EVERYONE);
+        private static final Permission PLAYER_LOCATION = new Permission("coordfinder.playerlocation", PermissionType.EVERYONE);
+        private static final Permission MODIFY_PLACES = new Permission("coordfinder.modifyplaces", PermissionType.EVERYONE);
+        private static final Permission GET_PLACES = new Permission("coordfinder.getplaces", PermissionType.EVERYONE);
+        private static final Permission HIDE = new Permission("coordfinder.hide", PermissionType.EVERYONE);
+        private static final Permission TARGET = new Permission("coordfinder.target", PermissionType.EVERYONE);
+        private static final Permission CLEAR_TARGET = new Permission("coordfinder.cleartarget", PermissionType.EVERYONE);
+        private static final Permission LIST_TARGET = new Permission("coordfinder.listtarget", PermissionType.EVERYONE);
 
     private static final List<Permission> PERMISSIONS = List.of(
             PLAYER_LOCATION,
             MODIFY_PLACES,
             GET_PLACES,
-            HIDE
+            HIDE,
+            TARGET,
+            CLEAR_TARGET,
+            LIST_TARGET
     );
 
     @Override

@@ -4,6 +4,7 @@ import de.maxhenkel.admiral.MinecraftAdmiral;
 import de.maxhenkel.coordfinder.command.CoordCommands;
 import de.maxhenkel.coordfinder.command.CoordFinderPermissionManager;
 import de.maxhenkel.coordfinder.config.PlaceConfig;
+import de.maxhenkel.coordfinder.config.TargetConfig;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
@@ -20,11 +21,14 @@ public class CoordFinder implements ModInitializer {
     public static final Logger LOGGER = LogManager.getLogger(MODID);
 
     public static PlaceConfig PLACE_CONFIG;
+    public static TargetConfig TARGET_CONFIG;
     public static Map<UUID, Boolean> HIDDEN_PLAYERS = new HashMap<>();
 
     @Override
     public void onInitialize() {
-        PLACE_CONFIG = new PlaceConfig(FabricLoader.getInstance().getConfigDir().resolve(MODID).resolve("places.properties"));
+        var configDir = FabricLoader.getInstance().getConfigDir().resolve(MODID);
+        PLACE_CONFIG = new PlaceConfig(configDir.resolve("places.properties"));
+        TARGET_CONFIG = new TargetConfig(configDir.resolve("targets.properties"));
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             MinecraftAdmiral.builder(dispatcher, registryAccess).addCommandClasses(
