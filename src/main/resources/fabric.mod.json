@@ -16,8 +16,14 @@
   "entrypoints": {
     "main": [
       "de.maxhenkel.coordfinder.CoordFinder"
+    ],
+    "client": [
+      "de.maxhenkel.coordfinder.client.CoordFinderClient"
     ]
   },
+  "mixins": [
+    "coordfinder.mixins.json"
+  ],
   "depends": {
     "fabricloader": "${fabric_loader_dependency}",
     "minecraft": "${minecraft_dependency}"

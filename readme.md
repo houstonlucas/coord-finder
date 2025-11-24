@@ -18,3 +18,9 @@ A serverside Fabric mod to share player and place coordinates on your server.
 
 `/coords unhide` unhides your location.
 
+`/coords settarget <placename>` sets your locator bar target to an existing place.
+
+`/coords cleartarget` removes your current locator bar target.
+
+`/coords listtarget` shows details about your current locator bar target.
+

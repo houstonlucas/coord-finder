@@ -5,8 +5,13 @@ import de.maxhenkel.coordfinder.command.CoordCommands;
 import de.maxhenkel.coordfinder.command.CoordFinderPermissionManager;
 import de.maxhenkel.coordfinder.config.PlaceConfig;
 import de.maxhenkel.coordfinder.config.TargetConfig;
+import de.maxhenkel.coordfinder.network.Networking;
+import de.maxhenkel.coordfinder.target.PlayerTargetManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,6 +31,7 @@ public class CoordFinder implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        Networking.init();
         var configDir = FabricLoader.getInstance().getConfigDir().resolve(MODID);
         PLACE_CONFIG = new PlaceConfig(configDir.resolve("places.properties"));
         TARGET_CONFIG = new TargetConfig(configDir.resolve("targets.properties"));
@@ -35,6 +41,18 @@ public class CoordFinder implements ModInitializer {
                     CoordCommands.class
             ).setPermissionManager(CoordFinderPermissionManager.INSTANCE).build();
         });
+
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+            PlayerTargetManager.syncTarget(handler.getPlayer())
+        );
+
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) ->
+            PlayerTargetManager.syncTarget(newPlayer)
+        );
+
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) ->
+            PlayerTargetManager.syncTarget(player)
+        );
     }
 
 }

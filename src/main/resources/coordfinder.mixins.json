@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "de.maxhenkel.coordfinder.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ClientWaypointManagerAccessor",
+    "ClientWaypointManagerMixin",
+    "GuiMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

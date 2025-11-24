@@ -105,8 +105,8 @@ public class CoordCommands {
     }
 
     @RequiresPermission("coordfinder.target")
-    @Command("target")
-    public void target(CommandContext<CommandSourceStack> context, @Name("name") String placeName) throws CommandSyntaxException {
+    @Command("settarget")
+    public void setTarget(CommandContext<CommandSourceStack> context, @Name("name") String placeName) throws CommandSyntaxException {
         if (!PlaceConfig.isValidPlaceName(placeName)) {
             sendInvalidPlaceNameMessage(context.getSource());
             return;
