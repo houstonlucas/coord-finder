@@ -42,9 +42,10 @@ public class CoordFinder implements ModInitializer {
             ).setPermissionManager(CoordFinderPermissionManager.INSTANCE).build();
         });
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-            PlayerTargetManager.syncTarget(handler.getPlayer())
-        );
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            PlayerTargetManager.syncTarget(handler.getPlayer());
+            Networking.sendPlaces(handler.getPlayer());
+        });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) ->
             PlayerTargetManager.syncTarget(newPlayer)

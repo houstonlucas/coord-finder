@@ -8,6 +8,7 @@ import de.maxhenkel.admiral.annotations.RequiresPermission;
 import de.maxhenkel.coordfinder.CoordFinder;
 import de.maxhenkel.coordfinder.Location;
 import de.maxhenkel.coordfinder.config.PlaceConfig;
+import de.maxhenkel.coordfinder.network.Networking;
 import de.maxhenkel.coordfinder.target.PlayerTargetManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -60,6 +61,7 @@ public class CoordCommands {
             return;
         }
         CoordFinder.PLACE_CONFIG.removePlace(placeName);
+        Networking.broadcastPlaces(context.getSource().getServer());
         context.getSource().sendSuccess(() -> Component.literal("Successfully removed ")
                 .append(Component.literal(placeName).withStyle(ChatFormatting.GREEN))
                 .append(Component.literal(".")
@@ -214,6 +216,7 @@ public class CoordCommands {
         }
         Location loc = new Location(dimension.dimension().location(), new BlockPos((int) location.x, (int) location.y, (int) location.z));
         CoordFinder.PLACE_CONFIG.setPlace(placeName, loc);
+        Networking.broadcastPlaces(context.getSource().getServer());
 
         context.getSource().sendSuccess(() ->
                         Component.literal("Successfully set the location of ")

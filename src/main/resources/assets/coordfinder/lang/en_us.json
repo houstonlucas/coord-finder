@@ -1,0 +1,13 @@
+{
+  "key.category.coordfinder.general": "Coord Finder",
+  "key.coordfinder.menu": "Open Coord Finder Menu",
+  "screen.coordfinder.menu.title": "Coord Finder",
+  "screen.coordfinder.menu.target": "Current target: %s",
+  "screen.coordfinder.menu.target.none": "Current target: None",
+  "screen.coordfinder.menu.target_header": "Current Target",
+  "screen.coordfinder.menu.target_name": "Name: %s",
+  "screen.coordfinder.menu.target_position": "Pos: %d, %d, %d (%s)",
+  "screen.coordfinder.menu.target_position_unknown": "Position unknown",
+  "screen.coordfinder.menu.list_label": "Places",
+  "screen.coordfinder.menu.list_empty": "No places synced yet"
+}
