@@ -20,6 +20,20 @@ public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> 
     }
 
     @Override
+    public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean inside) {
+        if (mouseButtonEvent.button() == 0) {
+            Entry entry = getEntryAtPosition(mouseButtonEvent.x(), mouseButtonEvent.y());
+            if (entry != null) {
+                setFocused(entry);
+                setSelected(entry);
+                callback.onEntryClicked(entry);
+                return true;
+            }
+        }
+        return super.mouseClicked(mouseButtonEvent, inside);
+    }
+
+    @Override
     public int getRowWidth() {
         return Math.max(0, this.width - 12);
     }
@@ -103,16 +117,6 @@ public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> 
                 guiGraphics.drawString(PlaceListWidget.this.minecraft.font, subtitle, x, y + 10, 0xFF5A5A5A, false);
         }
 
-        @Override
-        public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean inside) {
-            if (!inside || mouseButtonEvent.button() != 0) {
-                return false;
-            }
-            PlaceListWidget.this.setFocused(this);
-            PlaceListWidget.this.setSelected(this);
-            callback.onEntryClicked(this);
-            return true;
-        }
     }
 
     public interface Callback {
