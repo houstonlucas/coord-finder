@@ -119,7 +119,8 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         searchBox.setMaxLength(64);
         searchBox.setBordered(false);
         searchBox.setTextColor(SEARCH_TEXT_COLOR);
-        searchBox.setTextColorUneditable(SEARCH_TEXT_COLOR);
+        searchBox.setTextColorUneditable(SEARCH_FIELD_FILL);
+        searchBox.setTextShadow(false);
         addRenderableWidget(searchBox);
 
         dimensionFilterCheckbox = Checkbox.builder(Component.empty(), this.font)
