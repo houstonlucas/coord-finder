@@ -16,6 +16,8 @@ import java.util.List;
 
 public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> {
 
+    public static final int ENTRY_NAME_COLOR = 0xFF1C1C1C;
+
     private final Callback callback;
     private List<ClientPlaces.Entry> cachedEntries = List.of();
     private String searchQuery = "";
@@ -186,7 +188,7 @@ public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> 
         public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
             int x = getContentX();
             int y = getContentY();
-            guiGraphics.drawString(PlaceListWidget.this.minecraft.font, place.name(), x, y, 0xFF1C1C1C, false);
+            guiGraphics.drawString(PlaceListWidget.this.minecraft.font, place.name(), x, y, ENTRY_NAME_COLOR, false);
             Location location = place.location();
             String subtitle = "%d, %d, %d • %s".formatted(
                     location.position().getX(),

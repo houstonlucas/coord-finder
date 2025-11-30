@@ -11,5 +11,6 @@
   "screen.coordfinder.menu.list_label": "Places",
   "screen.coordfinder.menu.list_empty": "No places synced yet",
   "screen.coordfinder.menu.search_hint": "Search places",
+  "screen.coordfinder.menu.search_label": "Search",
   "screen.coordfinder.menu.filter_same_dimension": "Current dimension only"
 }

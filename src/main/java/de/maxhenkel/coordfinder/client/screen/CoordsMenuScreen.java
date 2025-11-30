@@ -5,43 +5,78 @@ import de.maxhenkel.coordfinder.client.ClientPlaces;
 import de.maxhenkel.coordfinder.client.ClientTargetStatus;
 import de.maxhenkel.coordfinder.client.KeyMappings;
 import de.maxhenkel.coordfinder.network.RequestPlacesPayload;
-import org.joml.Matrix3x2fStack;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
+import org.joml.Matrix3x2fStack;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 public class CoordsMenuScreen extends CoordFinderScreenBase {
 
     private static final int PANEL_WIDTH = 252;
     private static final int PANEL_HEIGHT = 260;
     private static final int INNER_MARGIN = 12;
-    private static final int LIST_TOP_OFFSET = 56;
-    private static final int TARGET_PANEL_HEIGHT = 58;
+    private static final int LIST_TOP_OFFSET = 80;
     private static final int TARGET_SECTION_SPACING = 16;
+    private static final int TARGET_PANEL_TOP_PADDING = 6;
+    private static final int TARGET_PANEL_BOTTOM_PADDING = 10;
+    private static final int TARGET_PANEL_LINE_GAP = 14;
+    private static final int TARGET_PANEL_MIN_HEIGHT = 42;
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_SPACING = 8;
+    private static final int BUTTON_SECTION_GAP = 14;
+    private static final int PANEL_BOTTOM_MARGIN = 18;
+    private static final int BUTTON_SIDE_MARGIN = 12;
+    private static final int MAX_BUTTON_WIDTH = 78;
     private static final int MIN_LIST_HEIGHT = 80;
     private static final int SEARCH_BOX_HEIGHT = 16;
     private static final int SEARCH_ROW_SPACING = 6;
-    private static final int DIMENSION_CHECKBOX_WIDTH = 120;
+    private static final int SEARCH_SECTION_PADDING = 4;
+    private static final int MIN_SEARCH_FIELD_WIDTH = 72;
+    private static final int SEARCH_CHECKBOX_GAP = 10;
+    private static final int STACKED_CHECKBOX_MARGIN = 6;
+    private static final int DIMENSION_LABEL_GAP = 6;
+    private static final int DIMENSION_LABEL_CLICK_PADDING = 8;
+    private static final int DIMENSION_LABEL_MAX_WIDTH = 100;
+    private static final float DIMENSION_LABEL_SCALE = 0.5F;
+    private static final int DIMENSION_LABEL_LINE_SPACING = 1;
+    private static final int MIN_SEARCH_TOP_OFFSET = 38;
+    private static final int SEARCH_LABEL_ABOVE_SECTION = 6;
 
     private static final Component BUTTON_SET_LABEL = Component.literal("Set Target");
     private static final Component BUTTON_CLEAR_LABEL = Component.literal("Clear Target");
     private static final Component BUTTON_REFRESH_LABEL = Component.literal("Reload");
     private static final Component EMPTY_PLACES_LABEL = Component.translatable("screen.coordfinder.menu.list_empty");
+    private static final Component SEARCH_LABEL = Component.translatable("screen.coordfinder.menu.search_label");
+    private static final Component SEARCH_HINT = Component.translatable("screen.coordfinder.menu.search_hint");
+    private static final Component DIMENSION_FILTER_LABEL = Component.translatable("screen.coordfinder.menu.filter_same_dimension");
     private static final int HEADER_TEXT_COLOR = 0xFF3F3F40;
     private static final int SECTION_LABEL_COLOR = 0xFF3F3F40;
     private static final int PANEL_BORDER_COLOR = 0xFFB7B1A6;
     private static final int PANEL_TOP_COLOR = 0xFFFDFBF4;
     private static final int PANEL_BOTTOM_COLOR = 0xFFF1ECE2;
+    private static final int SEARCH_SECTION_BORDER = 0xFFD9D1C5;
+    private static final int SEARCH_SECTION_TOP = 0xFFF8F4EC;
+    private static final int SEARCH_SECTION_BOTTOM = 0xFFECE4D7;
+    private static final int SEARCH_FIELD_BORDER = 0xFFCFC5B6;
+    private static final int SEARCH_FIELD_FILL = 0xFFFDFBF4;
+    private static final int SEARCH_TEXT_COLOR = PlaceListWidget.ENTRY_NAME_COLOR;
+    private static final int SEARCH_PLACEHOLDER_COLOR = 0xFF8D877D;
+    private static final int SEARCH_LABEL_COLOR = 0xFF3F3F40;
+    private static final int DIMENSION_LABEL_COLOR = 0xFF3F3F40;
+    private static final int DIMENSION_LABEL_DISABLED_COLOR = 0xFF9F9588;
+    private static final int DIMENSION_LABEL_ACTIVE_COLOR = 0xFF1C1C1C;
     private static final float TITLE_SCALE = 1.15F;
     private static final float COORD_TEXT_SCALE = 0.9F;
     private static final InputWithModifiers DUMMY_INPUT = new InputWithModifiers() {
@@ -69,7 +104,18 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
     private int listTop;
     private int listHeight;
     private int targetPanelTop;
+    private int targetPanelHeight;
     private int buttonY;
+    private int searchAreaTop;
+    private int searchAreaHeight;
+    private int dimensionLabelX;
+    private int dimensionLabelY;
+    private int dimensionLabelWidth;
+    private int dimensionLabelHeight;
+    private int dimensionLabelLineHeight;
+    private List<FormattedCharSequence> dimensionLabelLines;
+    private boolean stackedFilterLayout;
+    private int checkboxBoxSize;
 
     public CoordsMenuScreen() {
         super(Component.translatable("screen.coordfinder.menu.title"), PANEL_WIDTH, PANEL_HEIGHT);
@@ -82,33 +128,74 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         listWidth = panelWidth - INNER_MARGIN * 2;
         listX = guiLeft + INNER_MARGIN;
         listTop = guiTop + LIST_TOP_OFFSET;
-        int searchRowY = listTop - SEARCH_BOX_HEIGHT - SEARCH_ROW_SPACING;
-        int availableListHeight = panelHeight - (LIST_TOP_OFFSET + TARGET_SECTION_SPACING + TARGET_PANEL_HEIGHT + BUTTON_HEIGHT + 26);
+
+        checkboxBoxSize = Checkbox.getBoxSize(this.font);
+        dimensionLabelLineHeight = Math.max(8, Math.round(this.font.lineHeight * DIMENSION_LABEL_SCALE));
+        dimensionLabelLines = this.font.split(DIMENSION_FILTER_LABEL, DIMENSION_LABEL_MAX_WIDTH);
+        dimensionLabelHeight = dimensionLabelLines.size() * dimensionLabelLineHeight + (Math.max(0, dimensionLabelLines.size() - 1) * DIMENSION_LABEL_LINE_SPACING);
+        dimensionLabelWidth = (int) Math.ceil(DIMENSION_LABEL_MAX_WIDTH * DIMENSION_LABEL_SCALE) + DIMENSION_LABEL_CLICK_PADDING;
+        int checkboxAreaWidth = checkboxBoxSize + DIMENSION_LABEL_GAP + dimensionLabelWidth;
+        int maxSearchRowSpace = Math.max(0, listWidth - checkboxAreaWidth - SEARCH_CHECKBOX_GAP);
+        stackedFilterLayout = maxSearchRowSpace < MIN_SEARCH_FIELD_WIDTH;
+        int searchFieldWidth = stackedFilterLayout ? listWidth : maxSearchRowSpace;
+        searchAreaHeight = SEARCH_SECTION_PADDING * 2 + SEARCH_BOX_HEIGHT + (stackedFilterLayout ? STACKED_CHECKBOX_MARGIN + checkboxBoxSize : 0);
+
+        int preferredSearchTop = listTop - searchAreaHeight - SEARCH_ROW_SPACING;
+        int minSearchTop = guiTop + MIN_SEARCH_TOP_OFFSET;
+        if (preferredSearchTop < minSearchTop) {
+            searchAreaTop = minSearchTop;
+            listTop = searchAreaTop + searchAreaHeight + SEARCH_ROW_SPACING;
+        } else {
+            searchAreaTop = preferredSearchTop;
+        }
+
+        targetPanelHeight = calculateTargetPanelHeight();
+        buttonY = guiTop + panelHeight - PANEL_BOTTOM_MARGIN - BUTTON_HEIGHT;
+        targetPanelTop = buttonY - BUTTON_SECTION_GAP - targetPanelHeight;
+        int availableListHeight = Math.max(0, targetPanelTop - TARGET_SECTION_SPACING - listTop);
         listHeight = Math.max(MIN_LIST_HEIGHT, availableListHeight);
+        if (listTop + listHeight + TARGET_SECTION_SPACING > targetPanelTop) {
+            listHeight = availableListHeight;
+        }
         targetPanelTop = listTop + listHeight + TARGET_SECTION_SPACING;
-        buttonY = targetPanelTop + TARGET_PANEL_HEIGHT + 8;
+        buttonY = targetPanelTop + targetPanelHeight + BUTTON_SECTION_GAP;
+        buttonY = Math.min(buttonY, guiTop + panelHeight - PANEL_BOTTOM_MARGIN - BUTTON_HEIGHT);
 
         placeList = new PlaceListWidget(this.minecraft, listWidth, listHeight, listTop, 26, this::handleEntryClick);
         placeList.updateSizeAndPosition(listWidth, listHeight, listX, listTop);
         addRenderableWidget(placeList);
 
-        int checkboxX = listX + listWidth - DIMENSION_CHECKBOX_WIDTH;
-        int searchWidth = Math.max(80, listWidth - DIMENSION_CHECKBOX_WIDTH - 8);
-        searchBox = new EditBox(this.font, listX, searchRowY, searchWidth, SEARCH_BOX_HEIGHT, Component.translatable("screen.coordfinder.menu.search_hint"));
+        int searchInputY = searchAreaTop + SEARCH_SECTION_PADDING;
+        int contentWidth = Math.max(20, listWidth - 6);
+        int targetWidth = stackedFilterLayout ? listWidth - 6 : Math.min(searchFieldWidth, contentWidth);
+        int searchInputWidth = Math.max(60, targetWidth);
+        int searchFieldX = listX + 3;
+        searchBox = new EditBox(this.font, searchFieldX, searchInputY, searchInputWidth, SEARCH_BOX_HEIGHT, SEARCH_HINT);
         searchBox.setResponder(this::onSearchChanged);
-        searchBox.setHint(Component.translatable("screen.coordfinder.menu.search_hint"));
         searchBox.setMaxLength(64);
+        searchBox.setBordered(false);
+        searchBox.setTextColor(SEARCH_TEXT_COLOR);
         addRenderableWidget(searchBox);
 
-        dimensionFilterCheckbox = Checkbox.builder(Component.translatable("screen.coordfinder.menu.filter_same_dimension"), this.font)
-            .pos(checkboxX, searchRowY - 1)
-            .maxWidth(DIMENSION_CHECKBOX_WIDTH)
+        int checkboxX = stackedFilterLayout ? listX : listX + listWidth - checkboxAreaWidth;
+        int checkboxY = stackedFilterLayout
+                ? searchInputY + SEARCH_BOX_HEIGHT + STACKED_CHECKBOX_MARGIN
+                : searchAreaTop + (searchAreaHeight - checkboxBoxSize) / 2;
+        dimensionLabelX = checkboxX + checkboxBoxSize + DIMENSION_LABEL_GAP;
+        int labelYOffset = Math.max(0, (checkboxBoxSize - dimensionLabelHeight) / 2);
+        dimensionLabelY = checkboxY + labelYOffset;
+
+        dimensionFilterCheckbox = Checkbox.builder(Component.empty(), this.font)
+            .pos(checkboxX, checkboxY)
+            .maxWidth(Math.max(checkboxBoxSize + 4, stackedFilterLayout ? listWidth : checkboxAreaWidth))
             .selected(false)
             .onValueChange((checkbox, selected) -> updateDimensionFilter())
             .build();
+        dimensionFilterCheckbox.setTooltip(Tooltip.create(DIMENSION_FILTER_LABEL));
         addRenderableWidget(dimensionFilterCheckbox);
 
-        int buttonWidth = 78;
+        int availableButtonWidth = Math.max(30, panelWidth - BUTTON_SIDE_MARGIN * 2);
+        int buttonWidth = Math.min(MAX_BUTTON_WIDTH, (availableButtonWidth - BUTTON_SPACING * 2) / 3);
         int totalWidth = buttonWidth * 3 + BUTTON_SPACING * 2;
         int startX = guiLeft + (panelWidth - totalWidth) / 2;
 
@@ -124,7 +211,7 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
 
         refreshButton = addRenderableWidget(Button.builder(BUTTON_REFRESH_LABEL, button -> requestPlaces())
                 .pos(startX + (buttonWidth + BUTTON_SPACING) * 2, buttonY)
-            .size(buttonWidth, BUTTON_HEIGHT)
+                .size(buttonWidth, BUTTON_HEIGHT)
                 .build());
         refreshButton.setTooltip(null);
 
@@ -268,9 +355,10 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         guiGraphics.fill(right - 1, top, right, bottom, borderColor);
 
         guiGraphics.fill(left + 3, top + 28, right - 3, top + 29, 0xFF9E9E9E);
+        renderSearchSectionBackground(guiGraphics);
 
         drawInsetPanel(guiGraphics, listX, listTop, listWidth, listHeight);
-        drawInsetPanel(guiGraphics, listX, targetPanelTop, listWidth, TARGET_PANEL_HEIGHT);
+        drawInsetPanel(guiGraphics, listX, targetPanelTop, listWidth, targetPanelHeight);
     }
 
     @Override
@@ -283,7 +371,8 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         poseStack.popMatrix();
 
         Component placesLabel = Component.translatable("screen.coordfinder.menu.list_label");
-        guiGraphics.drawString(this.font, placesLabel, listX, listTop - 12, SECTION_LABEL_COLOR, false);
+        int placesLabelY = Math.max(searchAreaTop + searchAreaHeight + 4, listTop - 12);
+        guiGraphics.drawString(this.font, placesLabel, listX, placesLabelY, SECTION_LABEL_COLOR, false);
         int targetLabelY = targetPanelTop - TARGET_SECTION_SPACING + 6;
         guiGraphics.drawString(this.font, Component.translatable("screen.coordfinder.menu.target_header"), listX, targetLabelY, SECTION_LABEL_COLOR, false);
         if (placeList != null && placeList.isEmpty()) {
@@ -291,11 +380,94 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         }
         renderTargetDetails(guiGraphics);
         renderRefreshButtonIcon(guiGraphics);
+        renderSearchSectionForeground(guiGraphics);
+    }
+
+    private void renderSearchSectionBackground(GuiGraphics guiGraphics) {
+        if (searchBox == null) {
+            return;
+        }
+        int left = listX;
+        int right = listX + listWidth;
+        int top = searchAreaTop;
+        int bottom = searchAreaTop + searchAreaHeight;
+        guiGraphics.fill(left, top, right, bottom, SEARCH_SECTION_BORDER);
+        guiGraphics.fillGradient(left + 1, top + 1, right - 1, bottom - 1, SEARCH_SECTION_TOP, SEARCH_SECTION_BOTTOM);
+
+        int fieldLeft = searchBox.getX() - 3;
+        int fieldTop = searchBox.getY() - 2;
+        int fieldRight = searchBox.getX() + searchBox.getWidth() + 3;
+        int fieldBottom = searchBox.getY() + searchBox.getHeight() + 2;
+        guiGraphics.fill(fieldLeft, fieldTop, fieldRight, fieldBottom, SEARCH_FIELD_BORDER);
+        guiGraphics.fill(fieldLeft + 1, fieldTop + 1, fieldRight - 1, fieldBottom - 1, SEARCH_FIELD_FILL);
+    }
+
+    private void renderSearchSectionForeground(GuiGraphics guiGraphics) {
+        if (searchBox != null) {
+            guiGraphics.drawString(this.font, SEARCH_LABEL, listX, searchAreaTop - SEARCH_LABEL_ABOVE_SECTION, SEARCH_LABEL_COLOR, false);
+            if (searchBox.getValue().isEmpty()) {
+                int textX = searchBox.getX() + 2;
+                int textY = searchBox.getY() + (searchBox.getHeight() - this.font.lineHeight) / 2;
+                guiGraphics.drawString(this.font, SEARCH_HINT, textX, textY, SEARCH_PLACEHOLDER_COLOR, false);
+            }
+        }
+        if (dimensionFilterCheckbox == null) {
+            return;
+        }
+        int color;
+        if (!dimensionFilterCheckbox.active) {
+            color = DIMENSION_LABEL_DISABLED_COLOR;
+        } else if (dimensionFilterCheckbox.selected()) {
+            color = DIMENSION_LABEL_ACTIVE_COLOR;
+        } else {
+            color = DIMENSION_LABEL_COLOR;
+        }
+        renderDimensionLabel(guiGraphics, color);
+    }
+
+    private int calculateTargetPanelHeight() {
+        int scaledLineHeight = Math.max(8, Math.round(this.font.lineHeight * COORD_TEXT_SCALE));
+        int packedHeight = TARGET_PANEL_TOP_PADDING + TARGET_PANEL_BOTTOM_PADDING + this.font.lineHeight + TARGET_PANEL_LINE_GAP + scaledLineHeight;
+        return Math.max(TARGET_PANEL_MIN_HEIGHT, packedHeight);
+    }
+
+    private void renderDimensionLabel(GuiGraphics guiGraphics, int color) {
+        if (dimensionLabelLines == null || dimensionLabelLines.isEmpty()) {
+            return;
+        }
+        int currentY = dimensionLabelY;
+        for (FormattedCharSequence line : dimensionLabelLines) {
+            Matrix3x2fStack poseStack = guiGraphics.pose();
+            poseStack.pushMatrix();
+            poseStack.translate(dimensionLabelX, currentY);
+            poseStack.scale(DIMENSION_LABEL_SCALE, DIMENSION_LABEL_SCALE);
+            guiGraphics.drawString(this.font, line, 0, 0, color, false);
+            poseStack.popMatrix();
+            currentY += dimensionLabelLineHeight + DIMENSION_LABEL_LINE_SPACING;
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean inside) {
+        if (isWithinDimensionLabel(mouseButtonEvent.x(), mouseButtonEvent.y())) {
+            dimensionFilterCheckbox.onPress(DUMMY_INPUT);
+            return true;
+        }
+        return super.mouseClicked(mouseButtonEvent, inside);
+    }
+
+    private boolean isWithinDimensionLabel(double mouseX, double mouseY) {
+        if (dimensionFilterCheckbox == null) {
+            return false;
+        }
+        int labelYTop = dimensionLabelY - 2;
+        int labelBottom = dimensionLabelY + dimensionLabelHeight + 2;
+        return mouseX >= dimensionLabelX && mouseX <= dimensionLabelX + dimensionLabelWidth && mouseY >= labelYTop && mouseY <= labelBottom;
     }
 
     private void renderTargetDetails(GuiGraphics guiGraphics) {
         int textX = listX + 6;
-        int baseY = targetPanelTop + 6;
+        int baseY = targetPanelTop + TARGET_PANEL_TOP_PADDING;
 
         ClientTargetStatus.getTargetName().ifPresentOrElse(name -> {
             guiGraphics.drawString(this.font,
