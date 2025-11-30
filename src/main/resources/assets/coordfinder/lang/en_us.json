@@ -9,5 +9,7 @@
   "screen.coordfinder.menu.target_position": "Pos: %d, %d, %d (%s)",
   "screen.coordfinder.menu.target_position_unknown": "Position unknown",
   "screen.coordfinder.menu.list_label": "Places",
-  "screen.coordfinder.menu.list_empty": "No places synced yet"
+  "screen.coordfinder.menu.list_empty": "No places synced yet",
+  "screen.coordfinder.menu.search_hint": "Search places",
+  "screen.coordfinder.menu.filter_same_dimension": "Current dimension only"
 }

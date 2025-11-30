@@ -7,13 +7,21 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix3x2fStack;
 
+import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
 public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> {
 
     private final Callback callback;
+    private List<ClientPlaces.Entry> cachedEntries = List.of();
+    private String searchQuery = "";
+    @Nullable
+    private ResourceLocation dimensionFilter;
+
     public PlaceListWidget(Minecraft minecraft, int width, int height, int top, int itemHeight, Callback callback) {
         super(minecraft, width, height, top, itemHeight);
         this.callback = callback;
@@ -60,27 +68,97 @@ public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> 
     }
 
     public void refreshEntries() {
-        clearEntries();
-        List<ClientPlaces.Entry> places = ClientPlaces.getEntries();
-        for (ClientPlaces.Entry entry : places) {
-            addEntry(new Entry(entry));
-        }
+        cachedEntries = ClientPlaces.getEntries();
+        applyFilters();
     }
 
     public boolean isEmpty() {
         return children().isEmpty();
     }
 
-    public void setSelectedEntry(Entry entry) {
+    public void setSelectedEntry(@Nullable Entry entry) {
         super.setSelected(entry);
     }
 
-    public void setFocusedEntry(Entry entry) {
+    public void setFocusedEntry(@Nullable Entry entry) {
         setFocused(entry);
     }
 
     public Entry getSelectedEntry() {
         return (Entry) super.getSelected();
+    }
+
+    public void setSearchQuery(String query) {
+        searchQuery = query == null ? "" : query.trim();
+        applyFilters();
+    }
+
+    public void setDimensionFilter(@Nullable ResourceLocation dimension) {
+        dimensionFilter = dimension;
+        applyFilters();
+    }
+
+    private void applyFilters() {
+        String selectedName = null;
+        Entry selected = getSelectedEntry();
+        if (selected != null) {
+            selectedName = selected.getName();
+        }
+
+        clearEntries();
+        List<Entry> newEntries = new ArrayList<>();
+        for (ClientPlaces.Entry place : cachedEntries) {
+            if (!matchesDimension(place)) {
+                continue;
+            }
+            if (!matchesSearch(place)) {
+                continue;
+            }
+            newEntries.add(new Entry(place));
+        }
+        Entry newSelection = null;
+        for (Entry entry : newEntries) {
+            addEntry(entry);
+            if (selectedName != null && selectedName.equals(entry.getName())) {
+                newSelection = entry;
+            }
+        }
+        if (newSelection != null) {
+            setSelectedEntry(newSelection);
+            setFocusedEntry(newSelection);
+        } else {
+            setSelectedEntry(null);
+            setFocusedEntry(null);
+        }
+    }
+
+    private boolean matchesDimension(ClientPlaces.Entry place) {
+        if (dimensionFilter == null) {
+            return true;
+        }
+        return dimensionFilter.equals(place.location().dimension());
+    }
+
+    private boolean matchesSearch(ClientPlaces.Entry place) {
+        if (searchQuery.isEmpty()) {
+            return true;
+        }
+        return fuzzyMatch(place.name(), searchQuery);
+    }
+
+    private static boolean fuzzyMatch(String value, String pattern) {
+        String text = value.toLowerCase();
+        String query = pattern.toLowerCase();
+        int index = 0;
+        for (int i = 0; i < query.length(); i++) {
+            char c = query.charAt(i);
+            index = text.indexOf(c, index);
+            if (index == -1) {
+                return false;
+            }
+            index++;
+        }
+        return true;
     }
 
     public class Entry extends ObjectSelectionList.Entry<Entry> {

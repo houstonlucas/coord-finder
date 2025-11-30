@@ -9,9 +9,14 @@ import org.joml.Matrix3x2fStack;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Checkbox;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+
+import javax.annotation.Nullable;
 
 public class CoordsMenuScreen extends CoordFinderScreenBase {
 
@@ -24,6 +29,9 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_SPACING = 8;
     private static final int MIN_LIST_HEIGHT = 80;
+    private static final int SEARCH_BOX_HEIGHT = 16;
+    private static final int SEARCH_ROW_SPACING = 6;
+    private static final int DIMENSION_CHECKBOX_WIDTH = 120;
 
     private static final Component BUTTON_SET_LABEL = Component.literal("Set Target");
     private static final Component BUTTON_CLEAR_LABEL = Component.literal("Clear Target");
@@ -36,11 +44,24 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
     private static final int PANEL_BOTTOM_COLOR = 0xFFF1ECE2;
     private static final float TITLE_SCALE = 1.15F;
     private static final float COORD_TEXT_SCALE = 0.9F;
+    private static final InputWithModifiers DUMMY_INPUT = new InputWithModifiers() {
+        @Override
+        public int input() {
+            return 0;
+        }
+
+        @Override
+        public int modifiers() {
+            return 0;
+        }
+    };
 
     private PlaceListWidget placeList;
     private Button setTargetButton;
     private Button clearTargetButton;
     private Button refreshButton;
+    private Checkbox dimensionFilterCheckbox;
+    private EditBox searchBox;
     private Runnable placeListener;
 
     private int listX;
@@ -61,6 +82,7 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         listWidth = panelWidth - INNER_MARGIN * 2;
         listX = guiLeft + INNER_MARGIN;
         listTop = guiTop + LIST_TOP_OFFSET;
+        int searchRowY = listTop - SEARCH_BOX_HEIGHT - SEARCH_ROW_SPACING;
         int availableListHeight = panelHeight - (LIST_TOP_OFFSET + TARGET_SECTION_SPACING + TARGET_PANEL_HEIGHT + BUTTON_HEIGHT + 26);
         listHeight = Math.max(MIN_LIST_HEIGHT, availableListHeight);
         targetPanelTop = listTop + listHeight + TARGET_SECTION_SPACING;
@@ -69,6 +91,22 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         placeList = new PlaceListWidget(this.minecraft, listWidth, listHeight, listTop, 26, this::handleEntryClick);
         placeList.updateSizeAndPosition(listWidth, listHeight, listX, listTop);
         addRenderableWidget(placeList);
+
+        int checkboxX = listX + listWidth - DIMENSION_CHECKBOX_WIDTH;
+        int searchWidth = Math.max(80, listWidth - DIMENSION_CHECKBOX_WIDTH - 8);
+        searchBox = new EditBox(this.font, listX, searchRowY, searchWidth, SEARCH_BOX_HEIGHT, Component.translatable("screen.coordfinder.menu.search_hint"));
+        searchBox.setResponder(this::onSearchChanged);
+        searchBox.setHint(Component.translatable("screen.coordfinder.menu.search_hint"));
+        searchBox.setMaxLength(64);
+        addRenderableWidget(searchBox);
+
+        dimensionFilterCheckbox = Checkbox.builder(Component.translatable("screen.coordfinder.menu.filter_same_dimension"), this.font)
+            .pos(checkboxX, searchRowY - 1)
+            .maxWidth(DIMENSION_CHECKBOX_WIDTH)
+            .selected(false)
+            .onValueChange((checkbox, selected) -> updateDimensionFilter())
+            .build();
+        addRenderableWidget(dimensionFilterCheckbox);
 
         int buttonWidth = 78;
         int totalWidth = buttonWidth * 3 + BUTTON_SPACING * 2;
@@ -156,9 +194,50 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         }
     }
 
+    private void onSearchChanged(String value) {
+        if (placeList != null) {
+            placeList.setSearchQuery(value);
+        }
+    }
+
+    private void updateDimensionFilter() {
+        if (placeList == null) {
+            return;
+        }
+        ResourceLocation filterDimension = isDimensionFilterEnabled() ? getPlayerDimension() : null;
+        placeList.setDimensionFilter(filterDimension);
+    }
+
+    private boolean isDimensionFilterEnabled() {
+        return dimensionFilterCheckbox != null && dimensionFilterCheckbox.selected();
+    }
+
+    private void updateDimensionCheckboxState() {
+        if (dimensionFilterCheckbox == null) {
+            return;
+        }
+        boolean hasPlayer = this.minecraft != null && this.minecraft.player != null;
+        dimensionFilterCheckbox.active = hasPlayer;
+        if (!hasPlayer && dimensionFilterCheckbox.selected()) {
+            dimensionFilterCheckbox.onPress(DUMMY_INPUT);
+            updateDimensionFilter();
+        } else if (hasPlayer && dimensionFilterCheckbox.selected()) {
+            updateDimensionFilter();
+        }
+    }
+
+    @Nullable
+    private ResourceLocation getPlayerDimension() {
+        if (this.minecraft == null || this.minecraft.player == null || this.minecraft.player.level() == null) {
+            return null;
+        }
+        return this.minecraft.player.level().dimension().location();
+    }
+
     @Override
     public void tick() {
         super.tick();
+        updateDimensionCheckboxState();
         updateButtons();
     }
 
