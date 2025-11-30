@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import org.joml.Matrix3x2fStack;
 
 import java.util.List;
 
@@ -107,14 +108,19 @@ public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> 
         public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
             int x = getContentX();
             int y = getContentY();
-                guiGraphics.drawString(PlaceListWidget.this.minecraft.font, place.name(), x, y, 0xFF1C1C1C, false);
+            guiGraphics.drawString(PlaceListWidget.this.minecraft.font, place.name(), x, y, 0xFF1C1C1C, false);
             Location location = place.location();
             String subtitle = "%d, %d, %d • %s".formatted(
                     location.position().getX(),
                     location.position().getY(),
-                    location.position().getZ(),
-                    location.dimension());
-                guiGraphics.drawString(PlaceListWidget.this.minecraft.font, subtitle, x, y + 10, 0xFF5A5A5A, false);
+                location.position().getZ(),
+                location.dimension().getPath());
+            Matrix3x2fStack poseStack = guiGraphics.pose();
+            poseStack.pushMatrix();
+            poseStack.translate(x, y + 10);
+            poseStack.scale(0.9F, 0.9F);
+            guiGraphics.drawString(PlaceListWidget.this.minecraft.font, subtitle, 0, 0, 0xFF5A5A5A, false);
+            poseStack.popMatrix();
         }
 
     }

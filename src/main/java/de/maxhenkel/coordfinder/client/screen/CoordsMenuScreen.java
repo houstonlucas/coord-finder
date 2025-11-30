@@ -5,11 +5,13 @@ import de.maxhenkel.coordfinder.client.ClientPlaces;
 import de.maxhenkel.coordfinder.client.ClientTargetStatus;
 import de.maxhenkel.coordfinder.client.KeyMappings;
 import de.maxhenkel.coordfinder.network.RequestPlacesPayload;
+import org.joml.Matrix3x2fStack;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 public class CoordsMenuScreen extends CoordFinderScreenBase {
 
@@ -18,12 +20,13 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
     private static final int INNER_MARGIN = 12;
     private static final int LIST_TOP_OFFSET = 56;
     private static final int TARGET_PANEL_HEIGHT = 58;
+    private static final int TARGET_SECTION_SPACING = 16;
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_SPACING = 8;
     private static final int MIN_LIST_HEIGHT = 80;
 
-    private static final Component BUTTON_SET_LABEL = Component.literal("Set");
-    private static final Component BUTTON_CLEAR_LABEL = Component.literal("Clear");
+    private static final Component BUTTON_SET_LABEL = Component.literal("Set Target");
+    private static final Component BUTTON_CLEAR_LABEL = Component.literal("Clear Target");
     private static final Component BUTTON_REFRESH_LABEL = Component.literal("Reload");
     private static final Component EMPTY_PLACES_LABEL = Component.translatable("screen.coordfinder.menu.list_empty");
     private static final int HEADER_TEXT_COLOR = 0xFF3F3F40;
@@ -31,6 +34,8 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
     private static final int PANEL_BORDER_COLOR = 0xFFB7B1A6;
     private static final int PANEL_TOP_COLOR = 0xFFFDFBF4;
     private static final int PANEL_BOTTOM_COLOR = 0xFFF1ECE2;
+    private static final float TITLE_SCALE = 1.15F;
+    private static final float COORD_TEXT_SCALE = 0.9F;
 
     private PlaceListWidget placeList;
     private Button setTargetButton;
@@ -56,16 +61,16 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         listWidth = panelWidth - INNER_MARGIN * 2;
         listX = guiLeft + INNER_MARGIN;
         listTop = guiTop + LIST_TOP_OFFSET;
-        int availableListHeight = panelHeight - (LIST_TOP_OFFSET + TARGET_PANEL_HEIGHT + BUTTON_HEIGHT + 26);
+        int availableListHeight = panelHeight - (LIST_TOP_OFFSET + TARGET_SECTION_SPACING + TARGET_PANEL_HEIGHT + BUTTON_HEIGHT + 26);
         listHeight = Math.max(MIN_LIST_HEIGHT, availableListHeight);
-        targetPanelTop = listTop + listHeight + 8;
+        targetPanelTop = listTop + listHeight + TARGET_SECTION_SPACING;
         buttonY = targetPanelTop + TARGET_PANEL_HEIGHT + 8;
 
         placeList = new PlaceListWidget(this.minecraft, listWidth, listHeight, listTop, 26, this::handleEntryClick);
         placeList.updateSizeAndPosition(listWidth, listHeight, listX, listTop);
         addRenderableWidget(placeList);
 
-        int buttonWidth = 72;
+        int buttonWidth = 78;
         int totalWidth = buttonWidth * 3 + BUTTON_SPACING * 2;
         int startX = guiLeft + (panelWidth - totalWidth) / 2;
 
@@ -81,8 +86,9 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
 
         refreshButton = addRenderableWidget(Button.builder(BUTTON_REFRESH_LABEL, button -> requestPlaces())
                 .pos(startX + (buttonWidth + BUTTON_SPACING) * 2, buttonY)
-                .size(buttonWidth, BUTTON_HEIGHT)
+            .size(buttonWidth, BUTTON_HEIGHT)
                 .build());
+        refreshButton.setTooltip(null);
 
         placeListener = () -> {
             if (this.minecraft != null) {
@@ -190,42 +196,45 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
 
     @Override
     protected void renderPanelForeground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        int titleWidth = this.font.width(this.title);
-        int titleX = guiLeft + (panelWidth - titleWidth) / 2;
-        guiGraphics.drawString(this.font, this.title, titleX, guiTop + 12, HEADER_TEXT_COLOR, false);
+        Matrix3x2fStack poseStack = guiGraphics.pose();
+        poseStack.pushMatrix();
+        poseStack.translate(guiLeft + panelWidth / 2F, guiTop + 12);
+        poseStack.scale(TITLE_SCALE, TITLE_SCALE);
+        guiGraphics.drawString(this.font, this.title, -this.font.width(this.title) / 2, 0, HEADER_TEXT_COLOR, false);
+        poseStack.popMatrix();
 
         Component placesLabel = Component.translatable("screen.coordfinder.menu.list_label");
         guiGraphics.drawString(this.font, placesLabel, listX, listTop - 12, SECTION_LABEL_COLOR, false);
+        int targetLabelY = targetPanelTop - TARGET_SECTION_SPACING + 6;
+        guiGraphics.drawString(this.font, Component.translatable("screen.coordfinder.menu.target_header"), listX, targetLabelY, SECTION_LABEL_COLOR, false);
         if (placeList != null && placeList.isEmpty()) {
             guiGraphics.drawCenteredString(this.font, EMPTY_PLACES_LABEL, guiLeft + panelWidth / 2, listTop + listHeight / 2 - this.font.lineHeight / 2, 0x66999999);
         }
         renderTargetDetails(guiGraphics);
+        renderRefreshButtonIcon(guiGraphics);
     }
 
     private void renderTargetDetails(GuiGraphics guiGraphics) {
         int textX = listX + 6;
-        int headerY = targetPanelTop + 6;
-        guiGraphics.drawString(this.font, Component.translatable("screen.coordfinder.menu.target_header"), textX, headerY, HEADER_TEXT_COLOR, false);
+        int baseY = targetPanelTop + 6;
 
         ClientTargetStatus.getTargetName().ifPresentOrElse(name -> {
             guiGraphics.drawString(this.font,
-                    Component.translatable("screen.coordfinder.menu.target_name", name),
-                textX, headerY + 12, 0xFF1C1C1C, false);
+                Component.translatable("screen.coordfinder.menu.target_name", name),
+                textX, baseY, 0xFF1C1C1C, false);
             ClientTargetStatus.getTargetLocation().ifPresentOrElse(location -> {
-                String dim = location.dimension().toString();
-                guiGraphics.drawString(this.font,
-                        Component.translatable("screen.coordfinder.menu.target_position",
-                                location.position().getX(),
-                                location.position().getY(),
-                                location.position().getZ(),
-                                dim),
-                textX, headerY + 24, 0xFF5A5A5A, false);
+            Component position = Component.translatable("screen.coordfinder.menu.target_position",
+                location.position().getX(),
+                location.position().getY(),
+                location.position().getZ(),
+                formatDimension(location.dimension()));
+            drawScaledString(guiGraphics, position, textX, baseY + 14, 0xFF5A5A5A, COORD_TEXT_SCALE);
             }, () -> guiGraphics.drawString(this.font,
-                    Component.translatable("screen.coordfinder.menu.target_position_unknown"),
-                textX, headerY + 24, 0xFF5A5A5A, false));
+                Component.translatable("screen.coordfinder.menu.target_position_unknown"),
+                textX, baseY + 14, 0xFF5A5A5A, false));
         }, () -> guiGraphics.drawString(this.font,
-                Component.translatable("screen.coordfinder.menu.target.none"),
-            textX, headerY + 18, 0xFF5A5A5A, false));
+            Component.translatable("screen.coordfinder.menu.target.none"),
+            textX, baseY + 4, 0xFF5A5A5A, false));
     }
 
     private void drawInsetPanel(GuiGraphics guiGraphics, int x, int y, int width, int height) {
@@ -240,5 +249,21 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         guiGraphics.fill(x, bottom - 1, right, bottom, PANEL_BORDER_COLOR);
         guiGraphics.fill(x, y, x + 1, bottom, PANEL_BORDER_COLOR);
         guiGraphics.fill(right - 1, y, right, bottom, PANEL_BORDER_COLOR);
+    }
+
+    private void drawScaledString(GuiGraphics guiGraphics, Component text, int x, int y, int color, float scale) {
+        Matrix3x2fStack poseStack = guiGraphics.pose();
+        poseStack.pushMatrix();
+        poseStack.translate(x, y);
+        poseStack.scale(scale, scale);
+        guiGraphics.drawString(this.font, text, 0, 0, color, false);
+        poseStack.popMatrix();
+    }
+
+    private void renderRefreshButtonIcon(GuiGraphics guiGraphics) {
+    }
+
+    private static String formatDimension(ResourceLocation dimension) {
+        return dimension.getPath();
     }
 }
