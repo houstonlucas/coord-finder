@@ -7,6 +7,7 @@ import de.maxhenkel.coordfinder.client.KeyMappings;
 import de.maxhenkel.coordfinder.network.RequestPlacesPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.EditBox;
@@ -16,6 +17,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.util.FormattedCharSequence;
 import org.joml.Matrix3x2fStack;
 
@@ -24,16 +26,16 @@ import java.util.List;
 
 public class CoordsMenuScreen extends CoordFinderScreenBase {
 
-    private static final int PANEL_WIDTH = 252;
+    private static final int PANEL_WIDTH = 236;
     private static final int PANEL_HEIGHT = 260;
     private static final int BORDER_MARGIN = 12;
     private static final int GAP_SMALL = 6;
-    private static final int LIST_TOP_OFFSET = 80;
-    private static final int TARGET_SECTION_SPACING = 16;
-    private static final int TARGET_PANEL_TOP_PADDING = 6;
-    private static final int TARGET_PANEL_BOTTOM_PADDING = 10;
-    private static final int TARGET_PANEL_LINE_GAP = 14;
-    private static final int TARGET_PANEL_MIN_HEIGHT = 42;
+    private static final int LIST_TOP_OFFSET = 76;
+    private static final int TARGET_SECTION_SPACING = 14;
+    private static final int TARGET_PANEL_TOP_PADDING = 4;
+    private static final int TARGET_PANEL_BOTTOM_PADDING = 6;
+    private static final int TARGET_PANEL_LINE_GAP = 10;
+    private static final int TARGET_PANEL_MIN_HEIGHT = 32;
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_SPACING = 8;
     private static final int BUTTON_SECTION_GAP = 14;
@@ -52,6 +54,7 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
     private static final int MIN_SEARCH_TOP_OFFSET = 38;
     private static final int MIN_SEARCH_LIST_GAP = 14;
     private static final int SEARCH_LABEL_ABOVE_SECTION = GAP_SMALL;
+    private static final int CONTENT_SIDE_PADDING = 6;
 
     private static final Component BUTTON_SET_LABEL = Component.literal("Set Target");
     private static final Component BUTTON_CLEAR_LABEL = Component.literal("Clear Target");
@@ -60,16 +63,23 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
     private static final Component SEARCH_LABEL = Component.translatable("screen.coordfinder.menu.search_label");
     private static final Component SEARCH_HINT = Component.translatable("screen.coordfinder.menu.search_hint");
     private static final Component DIMENSION_FILTER_LABEL = Component.translatable("screen.coordfinder.menu.filter_same_dimension");
+    private static final ResourceLocation PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath(CoordFinder.MODID, "textures/gui/voicechat_panel.png");
+    private static final int PANEL_HEADER_V = 0;
+    private static final int PANEL_HEADER_HEIGHT = 16;
+    private static final int PANEL_BODY_V = 36;
+    private static final int PANEL_BODY_SLICE_HEIGHT = 24;
+    private static final int PANEL_FOOTER_V = 63;
+    private static final int PANEL_FOOTER_HEIGHT = 3;
+    private static final int PANEL_TEXTURE_WIDTH = 256;
+    private static final int PANEL_TEXTURE_HEIGHT = 256;
     private static final int HEADER_TEXT_COLOR = 0xFF3F3F40;
     private static final int SECTION_LABEL_COLOR = 0xFF3F3F40;
-    private static final int PANEL_BORDER_COLOR = 0xFFB7B1A6;
-    private static final int PANEL_TOP_COLOR = 0xFFFDFBF4;
-    private static final int PANEL_BOTTOM_COLOR = 0xFFF1ECE2;
-    private static final int SEARCH_SECTION_BORDER = 0xFFD9D1C5;
-    private static final int SEARCH_SECTION_TOP = 0xFFF8F4EC;
-    private static final int SEARCH_SECTION_BOTTOM = 0xFFECE4D7;
-    private static final int SEARCH_FIELD_BORDER = 0xFFCFC5B6;
-    private static final int SEARCH_FIELD_FILL = 0xFFFDFBF4;
+    private static final int SEARCH_FIELD_BORDER = 0xFFB89E72;
+    private static final int SEARCH_FIELD_FILL = 0xFFFAF2E4;
+    private static final int LIST_BACKGROUND_COLOR = 0xFFE7E7E7;
+    private static final int LIST_BORDER_COLOR = 0xFFB5B5B5;
+    private static final int TARGET_BACKGROUND_COLOR = 0xFFEAEAEA;
+    private static final int TARGET_BORDER_COLOR = 0xFFBFBFBF;
     private static final int SEARCH_TEXT_COLOR = HEADER_TEXT_COLOR;
     private static final int SEARCH_PLACEHOLDER_COLOR = 0xFF8D877D;
     private static final int SEARCH_LABEL_COLOR = 0xFF3F3F40;
@@ -114,7 +124,7 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         placeList.updateSizeAndPosition(layout.list().width(), layout.list().height(), layout.list().x(), layout.list().y());
         addRenderableWidget(placeList);
 
-        searchBox = new EditBox(this.font, layout.searchField().x(), layout.searchField().y(), layout.searchField().width(), layout.searchField().height(), SEARCH_HINT);
+        searchBox = new CenteredEditBox(this.font, layout.searchField().x(), layout.searchField().y(), layout.searchField().width(), layout.searchField().height(), SEARCH_HINT);
         searchBox.setResponder(this::onSearchChanged);
         searchBox.setMaxLength(64);
         searchBox.setBordered(false);
@@ -132,10 +142,11 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         dimensionFilterCheckbox.setTooltip(Tooltip.create(DIMENSION_FILTER_LABEL));
         addRenderableWidget(dimensionFilterCheckbox);
 
-        int availableButtonWidth = Math.max(30, panelWidth - BORDER_MARGIN * 2);
+        int contentSpan = panelWidth - BORDER_MARGIN * 2 - CONTENT_SIDE_PADDING;
+        int availableButtonWidth = Math.max(30, contentSpan);
         int buttonWidth = Math.min(MAX_BUTTON_WIDTH, (availableButtonWidth - BUTTON_SPACING * 2) / 3);
         int totalWidth = buttonWidth * 3 + BUTTON_SPACING * 2;
-        int startX = guiLeft + (panelWidth - totalWidth) / 2;
+        int startX = layout.list().x() + Math.max(0, (layout.list().width() - totalWidth) / 2);
 
         setTargetButton = addRenderableWidget(Button.builder(BUTTON_SET_LABEL, button -> setSelectedTarget())
                 .pos(startX, layout.buttonY())
@@ -278,36 +289,19 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
 
     @Override
     protected void renderPanelBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        int left = guiLeft;
-        int top = guiTop;
-        int right = guiLeft + panelWidth;
-        int bottom = guiTop + panelHeight;
-
-        int borderColor = 0xFF000000;
-        int panelColor = 0xFFE0E0E0;
-        int panelShadow = 0xFFB0B0B0;
-        guiGraphics.fill(left, top, right, bottom, panelShadow);
-        guiGraphics.fill(left + 1, top + 1, right - 1, bottom - 1, panelColor);
-        guiGraphics.fill(left, top, right, top + 1, borderColor);
-        guiGraphics.fill(left, bottom - 1, right, bottom, borderColor);
-        guiGraphics.fill(left, top, left + 1, bottom, borderColor);
-        guiGraphics.fill(right - 1, top, right, bottom, borderColor);
-
-        guiGraphics.fill(left + 3, top + 28, right - 3, top + 29, 0xFF9E9E9E);
+        drawPanelBase(guiGraphics);
         if (layout == null) {
             return;
         }
-        renderSearchSectionBackground(guiGraphics);
-
-        drawInsetPanel(guiGraphics, layout.list().x(), layout.list().y(), layout.list().width(), layout.list().height());
-        drawInsetPanel(guiGraphics, layout.targetPanel().x(), layout.targetPanel().y(), layout.targetPanel().width(), layout.targetPanel().height());
+        renderContentBackgrounds(guiGraphics);
+        renderSearchFieldFrame(guiGraphics);
     }
 
     @Override
     protected void renderPanelForeground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         Matrix3x2fStack poseStack = guiGraphics.pose();
         poseStack.pushMatrix();
-        poseStack.translate(guiLeft + panelWidth / 2F, guiTop + 12);
+        poseStack.translate(guiLeft + panelWidth / 2F, guiTop + 4);
         poseStack.scale(TITLE_SCALE, TITLE_SCALE);
         guiGraphics.drawString(this.font, this.title, -this.font.width(this.title) / 2, 0, HEADER_TEXT_COLOR, false);
         poseStack.popMatrix();
@@ -330,17 +324,10 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         renderSearchSectionForeground(guiGraphics);
     }
 
-    private void renderSearchSectionBackground(GuiGraphics guiGraphics) {
+    private void renderSearchFieldFrame(GuiGraphics guiGraphics) {
         if (searchBox == null || layout == null) {
             return;
         }
-        int left = layout.list().x();
-        int right = layout.list().x() + layout.list().width();
-        int top = layout.search().y();
-        int bottom = layout.search().y() + layout.search().height();
-        guiGraphics.fill(left, top, right, bottom, SEARCH_SECTION_BORDER);
-        guiGraphics.fillGradient(left + 1, top + 1, right - 1, bottom - 1, SEARCH_SECTION_TOP, SEARCH_SECTION_BOTTOM);
-
         int fieldLeft = searchBox.getX() - 3;
         int fieldTop = searchBox.getY() - 2;
         int fieldRight = searchBox.getX() + searchBox.getWidth() + 3;
@@ -372,9 +359,33 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         renderDimensionLabel(guiGraphics, color);
     }
 
+    private void renderContentBackgrounds(GuiGraphics guiGraphics) {
+        if (layout == null) {
+            return;
+        }
+        drawSectionBackground(guiGraphics, layout.list(), LIST_BACKGROUND_COLOR, LIST_BORDER_COLOR);
+        drawSectionBackground(guiGraphics, layout.targetPanel(), TARGET_BACKGROUND_COLOR, TARGET_BORDER_COLOR);
+    }
+
+    private static void drawSectionBackground(GuiGraphics guiGraphics, Rect rect, int fillColor, int borderColor) {
+        if (rect.width() <= 0 || rect.height() <= 0) {
+            return;
+        }
+        int left = rect.x();
+        int top = rect.y();
+        int right = left + rect.width();
+        int bottom = top + rect.height();
+        guiGraphics.fill(left, top, right, bottom, fillColor);
+        guiGraphics.fill(left, top, right, top + 1, borderColor);
+        guiGraphics.fill(left, bottom - 1, right, bottom, borderColor);
+        guiGraphics.fill(left, top, left + 1, bottom, borderColor);
+        guiGraphics.fill(right - 1, top, right, bottom, borderColor);
+    }
+
     private Layout calculateLayout() {
-        int listWidth = panelWidth - BORDER_MARGIN * 2;
-        int listX = guiLeft + BORDER_MARGIN;
+        int contentInset = CONTENT_SIDE_PADDING;
+        int listWidth = panelWidth - BORDER_MARGIN * 2 - contentInset;
+        int listX = guiLeft + BORDER_MARGIN + contentInset / 2;
         int listTop = guiTop + LIST_TOP_OFFSET;
 
         int checkboxBoxSize = Checkbox.getBoxSize(this.font);
@@ -513,20 +524,6 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
             textX, baseY + 4, 0xFF5A5A5A, false));
     }
 
-    private void drawInsetPanel(GuiGraphics guiGraphics, int x, int y, int width, int height) {
-        int right = x + width;
-        int bottom = y + height;
-        guiGraphics.fill(x, y, right, bottom, PANEL_BOTTOM_COLOR);
-        int gradientBottom = Math.min(bottom - 1, y + 18);
-        if (gradientBottom > y + 1) {
-            guiGraphics.fillGradient(x + 1, y + 1, right - 1, gradientBottom, PANEL_TOP_COLOR, PANEL_BOTTOM_COLOR);
-        }
-        guiGraphics.fill(x, y, right, y + 1, PANEL_BORDER_COLOR);
-        guiGraphics.fill(x, bottom - 1, right, bottom, PANEL_BORDER_COLOR);
-        guiGraphics.fill(x, y, x + 1, bottom, PANEL_BORDER_COLOR);
-        guiGraphics.fill(right - 1, y, right, bottom, PANEL_BORDER_COLOR);
-    }
-
     private void drawScaledString(GuiGraphics guiGraphics, Component text, int x, int y, int color, float scale) {
         Matrix3x2fStack poseStack = guiGraphics.pose();
         poseStack.pushMatrix();
@@ -536,11 +533,41 @@ public class CoordsMenuScreen extends CoordFinderScreenBase {
         poseStack.popMatrix();
     }
 
+    private void drawPanelBase(GuiGraphics guiGraphics) {
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, PANEL_TEXTURE, guiLeft, guiTop, 0, PANEL_HEADER_V, panelWidth, PANEL_HEADER_HEIGHT, PANEL_TEXTURE_WIDTH, PANEL_TEXTURE_HEIGHT);
+        int y = guiTop + PANEL_HEADER_HEIGHT;
+        int remaining = Math.max(0, panelHeight - PANEL_HEADER_HEIGHT - PANEL_FOOTER_HEIGHT);
+        while (remaining > 0) {
+            int drawHeight = Math.min(PANEL_BODY_SLICE_HEIGHT, remaining);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, PANEL_TEXTURE, guiLeft, y, 0, PANEL_BODY_V, panelWidth, drawHeight, PANEL_TEXTURE_WIDTH, PANEL_TEXTURE_HEIGHT);
+            y += drawHeight;
+            remaining -= drawHeight;
+        }
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, PANEL_TEXTURE, guiLeft, guiTop + panelHeight - PANEL_FOOTER_HEIGHT, 0, PANEL_FOOTER_V, panelWidth, PANEL_FOOTER_HEIGHT, PANEL_TEXTURE_WIDTH, PANEL_TEXTURE_HEIGHT);
+    }
+
     private void renderRefreshButtonIcon(GuiGraphics guiGraphics) {
     }
 
     private static String formatDimension(ResourceLocation dimension) {
         return dimension.getPath();
+    }
+
+    private static class CenteredEditBox extends EditBox {
+        private final int textYOffset;
+
+        public CenteredEditBox(Font font, int x, int y, int width, int height, Component placeholder) {
+            super(font, x, y, width, height, placeholder);
+            this.textYOffset = Math.max(0, (height - font.lineHeight) / 2);
+        }
+
+        @Override
+        public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            int originalY = getY();
+            super.setY(originalY + textYOffset);
+            super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+            super.setY(originalY);
+        }
     }
 
     private record Layout(Rect list, Rect search, Rect searchField, Rect targetPanel, CheckboxLayout checkbox, DimensionLabelLayout dimensionLabel, int buttonY) {}
