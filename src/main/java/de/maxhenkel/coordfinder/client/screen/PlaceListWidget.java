@@ -13,6 +13,7 @@ import org.joml.Matrix3x2fStack;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> {
 
@@ -96,6 +97,9 @@ public class PlaceListWidget extends ObjectSelectionList<PlaceListWidget.Entry> 
     }
 
     public void setDimensionFilter(@Nullable ResourceLocation dimension) {
+        if (Objects.equals(dimensionFilter, dimension)) {
+            return;
+        }
         dimensionFilter = dimension;
         applyFilters();
     }
